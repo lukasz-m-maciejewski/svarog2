@@ -151,7 +151,7 @@ as in `defun'."
   (projectile-mode +1))
 
 ;;; C++ config:
-(svarog/defhook c-mode-common-configuration
+(svarog/defhook c-mode-common-configuration () c-mode-common-hook
 		"Common conf for C mode."
 		(c-set-style "bsd")
 		(setq c-basic-offset 4
@@ -198,18 +198,17 @@ as in `defun'."
 
 ;;;; Editing tweaks
 
-(use-package 'undo-tree
+(use-package undo-tree
   :config
   (diminish 'undo-tree-mode))
 (global-undo-tree-mode)
 
-(electic-indent-mode t)
+(electric-indent-mode t)
 (setq linum-format " %4d ")
 (linum-mode t)
 
-(straight-use-package 'smartparens
-		      )
-(smartparens-mode t))
+(straight-use-package 'smartparens)
+(smartparens-mode t)
 (smartparens-global-mode t)
 
 ;; Delete marked text on typing
