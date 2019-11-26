@@ -1,3 +1,8 @@
+;; -*- lexical-binding: t -*-
+
+(require 'cl-lib)
+(require 'map)
+(require 'subr-x)
 
 ;;;; Code:
 (setq gc-cons-threshold 100000000)
@@ -99,6 +104,43 @@ as in `defun'."
 
 (straight-use-package 'use-package)
 
+;; Package `blackout' provides a convenient function for customizing
+;; mode lighters. It supports both major and minor modes with the same
+;; interface, and includes `use-package' integration. The features are
+;; a strict superset of those provided by similar packages `diminish',
+;; `delight', and `dim'.
+(use-package blackout
+  :straight (:host github :repo "raxod502/blackout")
+  :demand t)
+
+(setq svarog//default-font "Iosevka-12")
+
+;;;; Look customization
+(svarog/defhook look-setup () after-init-hook "Look setup"
+		(if window-system
+		    (progn
+		      (add-to-list 'default-frame-alist `(font . ,svarog//default-font))
+		      (set-face-font 'default svarog//default-font)
+		      )))
+
+;;;; Svarog keymap
+(use-package bind-key
+  :demand t)
+
+(defvar svarog//keymap (make-sparse-keymap)
+  "Keymap for Svarog prefix commands. Bound under \\[radian-keymap].")
+
+(bind-key* "M-P" svarog//keymap)
+(defmacro svarog/bind-key (key-name command &optional predicate)
+  "Bind key in `radian-keymap'. KEY-NAME, COMMAND and PREDICATE are as in `bind-key'."
+  `(bind-key ,key-name ,command svarog//keymap ,predicate))
+
+(defun svarog/find-init-file () (interactive)
+        (find-file "~/.emacs.d/init.el"))
+
+(svarog/bind-key "e i" #'svarog/find-init-file)
+
+;;;; Version control
 (straight-use-package 'git)
 
 (setq vc-handled-backends nil) ; disables build-in version control
@@ -130,9 +172,9 @@ as in `defun'."
 (straight-use-package 'rust-mode)
 
 (straight-use-package 'cquery
-  :config
-  (add-hook 'c++-mode-hook (lambda ()
-                             (lsp-cquery-enable))))
+		      :config
+		      (svarog/defhook enable-lsp () c++-mode-hook "Enable lsp at file open."
+				      (lsp-cquery-enable)))
 
 (with-eval-after-load 'projectile
   (projectile-register-project-type 'cpp-code '("projectile-cpp")
@@ -148,7 +190,8 @@ as in `defun'."
   (setq projectile-cache-file (concat svarog/config-local-directory "projectile.cache")
         projectile-known-projects-file (expand-file-name "projectile-bookmarks.eld"
                                                          svarog/config-local-directory))
-  (projectile-mode +1))
+  (projectile-mode +1)
+  :blackout t)
 
 ;;; C++ config:
 (svarog/defhook c-mode-common-configuration () c-mode-common-hook
@@ -161,7 +204,8 @@ as in `defun'."
 		      c-echo-syntactic-information-p t)
 		(define-key c-mode-base-map (kbd "RET") 'newline-and-indent)
 
-		(auto-revert-mode 1)
+		(auto-revert-mode t)
+		(blackout 'auto-revert-mode)
 		(toggle-truncate-lines t))
 		
 (svarog/defhook c++-mode-configuration () c++-mode-hook
@@ -170,52 +214,57 @@ as in `defun'."
 		(c-set-offset 'substatement-open 0)
 		(c-set-offset 'label '+))
 
-(straight-use-package 'diminish)
-(diminish 'company-mode)
-(diminish 'visual-line-mode)
-(diminish 'which-key-mode)
-(diminish 'auto-revert-mode)
-(diminish 'smartparens-mode)
-(diminish 'eldoc-mode)
-(diminish 'lsp-mode)
-(diminish 'whitespace-mode)
-(diminish 'hs-minor-mode)
-(diminish 'ivy-mode)
-(diminish 'projectile-mode "P")
-(diminish 'helm-mode)
 
 (display-battery-mode t)
 
-(straight-use-package 'ledger-mode)
+(use-package ledger-mode)
 
-(straight-use-package 'helm)
-(global-set-key (kbd "M-x") #'helm-M-x)
-(global-set-key (kbd "C-x r b") #'helm-filtered-bookmarks)
-(global-set-key (kbd "C-x C-f") #'helm-find-files)
-(helm-mode +1)
+(use-package helm
+  :demand t
+  :blackout t
+  :config 
+  (require 'helm-config)
+  (global-set-key (kbd "M-x") #'helm-M-x)
+  (global-set-key (kbd "C-x r b") #'helm-filtered-bookmarks)
+  (global-set-key (kbd "C-x C-f") #'helm-find-files)
+  (helm-mode t))
 
-(straight-use-package 'bazel-mode)
+
+(use-package bazel-mode)
 
 ;;;; Editing tweaks
 
 (use-package undo-tree
+  :demand t
+  :blackout t
   :config
-  (diminish 'undo-tree-mode))
-(global-undo-tree-mode)
+  (global-undo-tree-mode))
 
 (electric-indent-mode t)
 (setq linum-format " %4d ")
 (linum-mode t)
 
-(straight-use-package 'smartparens)
-(smartparens-mode t)
-(smartparens-global-mode t)
+(use-package smartparens
+  :demand t
+  :config
+  (smartparens-mode t)
+  (smartparens-global-mode t))
+
+(use-package rainbow-delimiters
+  :demand t
+  :config
+  (rainbow-delimiters-mode t))
+
+(use-package which-key
+  :blackout t
+  :config
+  (which-key-mode))
 
 ;; Delete marked text on typing
-(delete-selection-mode t)
+(delete-selection-mode 't)
 
 ;; Soft-wrap lines
-(global-visual-line-mode t)
+(global-visual-line-mode 't)
 
 ;; Better scrolling with mouse wheel/trackpad.
 (unless (and (boundp 'mac-mouse-wheel-smooth-scroll) mac-mouse-wheel-smooth-scroll)
@@ -235,3 +284,14 @@ as in `defun'."
 
 ;; apply syntax highlighting to all buffers
 (global-font-lock-mode t)
+
+(blackout 'company-mode)
+(blackout 'visual-line-mode)
+(blackout 'which-key-mode)
+(blackout 'auto-revert-mode)
+(blackout 'smartparens-mode)
+(blackout 'eldoc-mode)
+(blackout 'lsp-mode)
+(blackout 'whitespace-mode)
+(blackout 'hs-minor-mode)
+(blackout 'abbrev-mode)
