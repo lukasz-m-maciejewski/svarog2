@@ -141,10 +141,11 @@ as in `defun'."
 (svarog/bind-key "e i" #'svarog/find-init-file)
 
 ;;;; Version control
-(straight-use-package 'git)
+(use-package git)
 
 (setq vc-handled-backends nil) ; disables build-in version control
-(straight-use-package 'magit)
+(use-package magit
+  :demand t)
 
 (defconst svarog/config-local-directory
   (concat user-emacs-directory "config-local/"))
@@ -261,10 +262,10 @@ as in `defun'."
   (which-key-mode))
 
 ;; Delete marked text on typing
-(delete-selection-mode 't)
+(delete-selection-mode t)
 
 ;; Soft-wrap lines
-(global-visual-line-mode 't)
+(global-visual-line-mode t)
 
 ;; Better scrolling with mouse wheel/trackpad.
 (unless (and (boundp 'mac-mouse-wheel-smooth-scroll) mac-mouse-wheel-smooth-scroll)

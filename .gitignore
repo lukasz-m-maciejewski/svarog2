@@ -1,3 +1,5 @@
 straight
 elpa
 auto-save-list
+config-local
+transient
