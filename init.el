@@ -117,11 +117,10 @@ as in `defun'."
 
 ;;;; Look customization
 (svarog/defhook look-setup () after-init-hook "Look setup"
-		(if window-system
-		    (progn
-		      (add-to-list 'default-frame-alist `(font . ,svarog//default-font))
-		      (set-face-font 'default svarog//default-font)
-		      )))
+                (if window-system
+                    (progn
+                      (add-to-list 'default-frame-alist `(font . ,svarog//default-font))
+                      (set-face-font 'default svarog//default-font))))
 
 ;;;; Svarog keymap
 (use-package bind-key
@@ -130,7 +129,7 @@ as in `defun'."
 (defvar svarog//keymap (make-sparse-keymap)
   "Keymap for Svarog prefix commands. Bound under \\[radian-keymap].")
 
-(bind-key* "M-P" svarog//keymap)
+(bind-key* "M-p" svarog//keymap)
 (defmacro svarog/bind-key (key-name command &optional predicate)
   "Bind key in `radian-keymap'. KEY-NAME, COMMAND and PREDICATE are as in `bind-key'."
   `(bind-key ,key-name ,command svarog//keymap ,predicate))
@@ -170,13 +169,6 @@ as in `defun'."
         solarized-height-plus-4 1.0))
 (load-theme 'solarized-dark t)
 
-(straight-use-package 'rust-mode)
-
-(straight-use-package 'cquery
-		      :config
-		      (svarog/defhook enable-lsp () c++-mode-hook "Enable lsp at file open."
-				      (lsp-cquery-enable)))
-
 (with-eval-after-load 'projectile
   (projectile-register-project-type 'cpp-code '("projectile-cpp")
                                     :configure "(mkdir build-debug; cd build-debug; cmake ../source -GNinja -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_BUILD_TYPE=Debug; cd ..; ln -s build-debug/compile_commands.json)"
@@ -194,26 +186,45 @@ as in `defun'."
   (projectile-mode +1)
   :blackout t)
 
+(use-package lsp-ui
+  :demand t
+  :config
+  (add-hook 'lsp-mode-hook 'lsp-ui-mode))
+
+(use-package company-lsp
+  :demand t
+  :config
+  (push 'company-lsp company-backends))
+
 ;;; C++ config:
 (svarog/defhook c-mode-common-configuration () c-mode-common-hook
-		"Common conf for C mode."
-		(c-set-style "bsd")
-		(setq c-basic-offset 4
-		      tab-width 4
-		      indent-tabs-mode nil
-		      c-tab-always-indent t
-		      c-echo-syntactic-information-p t)
-		(define-key c-mode-base-map (kbd "RET") 'newline-and-indent)
+                "Common conf for C mode."
+                (c-set-style "bsd")
+                (setq c-basic-offset 4
+                      tab-width 4
+                      indent-tabs-mode nil
+                      c-tab-always-indent t
+                      c-echo-syntactic-information-p t)
+                (define-key c-mode-base-map (kbd "RET") 'newline-and-indent)
 
-		(auto-revert-mode t)
-		(blackout 'auto-revert-mode)
-		(toggle-truncate-lines t))
-		
+                (auto-revert-mode t)
+                (blackout 'auto-revert-mode)
+                (toggle-truncate-lines t))
+
 (svarog/defhook c++-mode-configuration () c++-mode-hook
-		"Custom C++ indent config."
-		(add-to-list 'c-offsets-alist '(innamespace . 0))
-		(c-set-offset 'substatement-open 0)
-		(c-set-offset 'label '+))
+                "Custom C++ indent config."
+                (add-to-list 'c-offsets-alist '(innamespace . 0))
+                (c-set-offset 'substatement-open 0)
+                (c-set-offset 'label '+))
+
+
+(use-package rust-mode)
+
+(use-package cquery
+  :demand t
+  :config
+  (svarog/defhook enable-lsp () c++-mode-hook "Enable lsp at file open."
+                  (lsp-cquery-enable)))
 
 
 (display-battery-mode t)
@@ -223,15 +234,61 @@ as in `defun'."
 (use-package helm
   :demand t
   :blackout t
-  :config 
+  :config
   (require 'helm-config)
   (global-set-key (kbd "M-x") #'helm-M-x)
   (global-set-key (kbd "C-x r b") #'helm-filtered-bookmarks)
   (global-set-key (kbd "C-x C-f") #'helm-find-files)
+
+  ;; The default "C-x c" is quite close to "C-x C-c", which quits Emacs.
+  ;; Changed to "C-c h". Note: We must set "C-c h" globally, because we
+  ;; cannot change `helm-command-prefix-key' once `helm-config' is loaded.
+  (global-set-key (kbd "C-c h") 'helm-command-prefix)
+  (global-unset-key (kbd "C-x c"))
+
+  (define-key helm-map (kbd "<tab>") 'helm-execute-persistent-action) ; rebind tab to run persistent action
+  (define-key helm-map (kbd "C-i") 'helm-execute-persistent-action) ; make TAB work in terminal
+  (define-key helm-map (kbd "C-z")  'helm-select-action) ; list actions using C-z
+
+  (when (executable-find "curl")
+    (setq helm-google-suggest-use-curl-p t))
+
+  (setq helm-split-window-in-side-p           t ; open helm buffer inside current window, not occupy whole other window
+        helm-move-to-line-cycle-in-source     t ; move to end or beginning of source when reaching top or bottom of source.
+        helm-ff-search-library-in-sexp        t ; search for library in `require' and `declare-function' sexp.
+        helm-scroll-amount                    8 ; scroll 8 lines other window using M-<next>/M-<prior>
+        helm-ff-file-name-history-use-recentf t
+        helm-echo-input-in-header-line t)
+
+  (svarog/defhook
+      helm-hide-minibuffer-maybe () helm-minibuffer-set-up-hook
+    "Hide minibuffer in Helm session if we use the header line as input field."
+    (when (with-helm-buffer helm-echo-input-in-header-line)
+      (let ((ov (make-overlay (point-min) (point-max) nil nil t)))
+        (overlay-put ov 'window (selected-window))
+        (overlay-put ov 'face
+                     (let ((bg-color (face-background 'default nil)))
+                       `(:background ,bg-color :foreground ,bg-color)))
+        (setq-local cursor-type nil))))
+
+  (setq helm-autoresize-max-height 0)
+  (setq helm-autoresize-min-height 20)
+  (helm-autoresize-mode t)
+
   (helm-mode t))
 
 
-(use-package bazel-mode)
+(use-package bazel-mode
+  :config
+  (add-to-list 'auto-mode-alist '("/BUILD\\(\\..*\\)?\\'" . bazel-mode))
+  (add-to-list 'auto-mode-alist '("/WORKSPACE\\'" . bazel-mode))
+  (add-to-list 'auto-mode-alist '("\\.\\(BUILD\\|WORKSPACE\\|bzl\\)\\'" . bazel-mode))
+  (svarog/defhook autoformat-on-save () bazel-mode-hook "Autoformat on save."
+                  (add-hook 'before-save-hook #'bazel-format nil t)))
+
+(add-hook 'bazel-mode-hook
+              (lambda ()
+                (add-hook 'before-save-hook #'bazel-format nil t)))
 
 ;;;; Editing tweaks
 
@@ -241,20 +298,37 @@ as in `defun'."
   :config
   (global-undo-tree-mode))
 
-(electric-indent-mode t)
-(setq linum-format " %4d ")
-(linum-mode t)
+(svarog/defhook goodies-for-prog-mode () prog-mode-hook "Goodies for prog-mode."
+                (electric-indent-mode t)
+                (setq linum-format " %4d ")
+                (linum-mode t)
+                (auto-revert-mode t)
+                (setq whitespace-line-column 80)
+                (setq whitespace-style '(face tabs empty trailing newline))
+                (whitespace-mode t)
+                (hl-line-mode t)
+                (hi-lock-mode t)
+                (hs-minor-mode t)
+                (blackout 'hs-minor-mode))
+
+
+(add-hook 'before-save-hook 'whitespace-cleanup)
 
 (use-package smartparens
   :demand t
   :config
+  (require 'smartparens-config)
   (smartparens-mode t)
   (smartparens-global-mode t))
 
 (use-package rainbow-delimiters
   :demand t
   :config
-  (rainbow-delimiters-mode t))
+  (svarog/defhook
+      add-rainbow-delimiters ()
+    prog-mode-hook
+    "Add rainbow delimiters to prog mode."
+    (rainbow-delimiters-mode t)))
 
 (use-package which-key
   :blackout t
@@ -266,6 +340,8 @@ as in `defun'."
 
 ;; Soft-wrap lines
 (global-visual-line-mode t)
+
+(setq-default indent-tabs-mode nil)
 
 ;; Better scrolling with mouse wheel/trackpad.
 (unless (and (boundp 'mac-mouse-wheel-smooth-scroll) mac-mouse-wheel-smooth-scroll)
