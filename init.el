@@ -21,7 +21,6 @@
 (setq inhibit-startup-message t)
 
 (setq straight-repository-branch "develop")
-(setq straight-use-package-by-default t)
 
 (defvar bootstrap-version)
 (let ((bootstrap-file
@@ -35,6 +34,27 @@
       (goto-char (point-max))
       (eval-print-last-sexp)))
   (load bootstrap-file nil 'nomessage))
+
+
+;; When configuring a feature with `use-package', also tell
+;; straight.el to install a package of the same name, unless otherwise
+;; specified using the `:straight' keyword.
+(setq straight-use-package-by-default t)
+
+;; Tell `use-package' to always load features lazily unless told
+;; otherwise. It's nicer to have this kind of thing be deterministic:
+;; if `:demand' is present, the loading is eager; otherwise, the
+;; loading is lazy. See
+;; https://github.com/jwiegley/use-package#notes-about-lazy-loading.
+(setq use-package-always-defer t)
+
+(defmacro use-feature (name &rest args)
+  "Like `use-package', but with `straight-use-package-by-default' disabled.
+NAME and ARGS are as in `use-package'."
+  (declare (indent defun))
+  `(use-package ,name
+     :straight nil
+     ,@args))
 
 ;;;;  package.el
 ;;; so package-list-packages includes them
@@ -113,9 +133,15 @@ as in `defun'."
   :straight (:host github :repo "raxod502/blackout")
   :demand t)
 
-(setq svarog//default-font "Iosevka-12")
+;; Package `no-littering' changes the default paths for lots of
+;; different packages, with the net result that the ~/.emacs.d folder
+;; is much more clean and organized.
+(use-package no-littering
+  :demand t)
 
 ;;;; Look customization
+(setq svarog//default-font "Iosevka-12")
+
 (svarog/defhook look-setup () after-init-hook "Look setup"
                 (if window-system
                     (progn
@@ -456,8 +482,98 @@ backends will still be included.")
   :demand t
   :config
   (require 'smartparens-config)
-  (smartparens-mode t)
-  (smartparens-global-mode t))
+  (smartparens-global-mode t)
+
+  ;; When in Paredit emulation mode, Smartparens binds M-( to wrap the
+  ;; following s-expression in round parentheses. By analogy, we
+  ;; should bind M-[ to wrap the following s-expression in square
+  ;; brackets. However, this breaks escape sequences in the terminal,
+  ;; so it may be controversial upstream. We only enable the
+  ;; keybinding in windowed mode.
+  (when (display-graphic-p)
+    (setf (map-elt sp-paredit-bindings "M-[") #'sp-wrap-square))
+
+  ;; Set up keybindings for s-expression navigation and manipulation
+  ;; in the style of Paredit.
+  (sp-use-paredit-bindings)
+
+  ;; Highlight matching delimiters.
+  (show-smartparens-global-mode +1)
+
+  ;; Prevent all transient highlighting of inserted pairs.
+  (setq sp-highlight-pair-overlay nil)
+  (setq sp-highlight-wrap-overlay nil)
+  (setq sp-highlight-wrap-tag-overlay nil)
+
+  ;; Don't disable autoskip when point moves backwards. (This lets you
+  ;; open a sexp, type some things, delete some things, etc., and then
+  ;; type over the closing delimiter as long as you didn't leave the
+  ;; sexp entirely.)
+  (setq sp-cancel-autoskip-on-backward-movement nil)
+
+  ;; Disable Smartparens in Org-related modes, since the keybindings
+  ;; conflict.
+  (use-feature org
+    :config
+    (add-to-list 'sp-ignore-modes-list #'org-mode))
+  (use-feature org-agenda
+    :config
+    (add-to-list 'sp-ignore-modes-list #'org-agenda-mode))
+
+  ;; Make C-k kill the sexp following point in Lisp modes, instead of
+  ;; just the current line.
+  (bind-key [remap kill-line] #'sp-kill-hybrid-sexp smartparens-mode-map
+            (apply #'derived-mode-p sp-lisp-modes))
+
+  ;; Smartparens is broken in `cc-mode' as of Emacs 27. See
+  ;; <https://github.com/Fuco1/smartparens/issues/963>.
+  (when (version<= "27" emacs-version)
+    (dolist (fun '(c-electric-paren c-electric-brace))
+      (add-to-list 'sp--special-self-insert-commands fun)))
+    (defun radian--smartparens-indent-new-pair (&rest _)
+    "Insert an extra newline after point, and reindent."
+    (newline)
+    (indent-according-to-mode)
+    (forward-line -1)
+    (indent-according-to-mode))
+
+  ;; The following is a really absurdly stupid hack that I can barely
+  ;; stand to look at. It needs to be fixed.
+  ;;
+  ;; Nevertheless, I can't live without the feature it provides (which
+  ;; should really come out of the box IMO): when pressing RET after
+  ;; inserting a pair, add an extra newline and indent. See
+  ;; <https://github.com/Fuco1/smartparens/issues/80#issuecomment-18910312>.
+
+  (defun radian--smartparens-pair-setup (mode delim)
+    "In major mode MODE, set up DELIM with newline-and-indent."
+    (sp-local-pair mode delim nil :post-handlers
+                   '((radian--smartparens-indent-new-pair "RET")
+                     (radian--smartparens-indent-new-pair "<return>"))))
+
+  (radian--smartparens-pair-setup #'prog-mode "(")
+  (radian--smartparens-pair-setup #'prog-mode "[")
+  (radian--smartparens-pair-setup #'prog-mode "{")
+  (radian--smartparens-pair-setup #'python-mode "\"\"\"")
+  (radian--smartparens-pair-setup #'latex-mode "\\[")
+  (radian--smartparens-pair-setup #'markdown-mode "```")
+
+  ;; It's unclear to me why any of this is needed.
+  (radian--smartparens-pair-setup #'json-mode "[")
+  (radian--smartparens-pair-setup #'json-mode "{")
+  (radian--smartparens-pair-setup #'tex-mode "{")
+
+  ;; Deal with `protobuf-mode' not using `define-minor-mode'.
+  (radian--smartparens-pair-setup #'protobuf-mode "{")
+
+  ;; Work around https://github.com/Fuco1/smartparens/issues/783.
+  (setq sp-escape-quotes-after-insert nil)
+
+  ;; Quiet some silly messages.
+  (dolist (key '(:unmatched-expression :no-matching-tag))
+    (setf (cdr (assq key sp-message-alist)) nil))
+
+  :blackout t)
 
 (use-package rainbow-delimiters
   :demand t
