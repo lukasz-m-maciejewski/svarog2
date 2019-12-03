@@ -183,6 +183,9 @@ as in `defun'."
 
 (setq recentf-save-file (expand-file-name "recentf" svarog/config-local-directory))
 
+(use-package graphene-meta-theme
+  :demand t)
+
 (use-package solarized-theme
   :config
   (setq solarized-distinct-fringe-background t
@@ -194,6 +197,34 @@ as in `defun'."
         solarized-height-plus-3 1.0
         solarized-height-plus-4 1.0))
 (load-theme 'solarized-dark t)
+(load-theme 'graphene-meta t)
+
+(use-package powerline
+  :demand t
+  :config
+  (powerline-default-theme))
+
+(defun svarog/reload-theme (theme)
+  "Reloads a THEME."
+  (load-theme theme)
+  (load-theme 'graphene-meta)
+  (powerline-reset))
+
+(defun svarog/light-theme ()
+  "Set solarized light theme."
+  (interactive)
+  (svarog/reload-theme 'solarized-light))
+
+(defun svarog/dark-theme ()
+  "Set solarized dark theme."
+  (interactive)
+  (svarog/reload-theme 'solarized-dark))
+
+(use-feature uniquify
+  :config
+  (setq uniquify-buffer-name-style 'forward))
+
+;;;; Projects config
 
 (with-eval-after-load 'projectile
   (projectile-register-project-type 'cpp-code '("projectile-cpp")
@@ -212,10 +243,12 @@ as in `defun'."
   (projectile-mode +1)
   :blackout t)
 
-(use-package lsp-ui
-  :demand t
+(use-package lsp-mode :commands lsp
   :config
-  (add-hook 'lsp-mode-hook 'lsp-ui-mode))
+  (setq lsp-enable-snippet nil
+        lsp-prefer-flymake nil))
+
+(use-package lsp-ui :commands lsp-ui-mode)
 
 ;;;; Autocompletion
 
@@ -385,12 +418,51 @@ backends will still be included.")
 
 (use-package rust-mode)
 
-(use-package cquery
+;; (use-package cquery
+;;   :demand t
+;;   :config
+;;   (svarog/defhook enable-lsp () c++-mode-hook "Enable lsp at file open."
+;;                   (lsp-cquery-enable)))
+
+(use-package ccls
   :demand t
   :config
-  (svarog/defhook enable-lsp () c++-mode-hook "Enable lsp at file open."
-                  (lsp-cquery-enable)))
+  (setq ccls-executable "/usr/bin/ccls")
+  (setq ccls-sem-highlight-method 'font-lock)
+  ;; alternatively, (setq ccls-sem-highlight-method 'overlay)
+  )
 
+(svarog/defhook enable-ccls () c++-mode-hook "Enable ccls."
+                (require 'ccls)
+                (lsp))
+
+(defun ccls/callee () (interactive) (lsp-ui-peek-find-custom "$ccls/call" '(:callee t)))
+(defun ccls/caller () (interactive) (lsp-ui-peek-find-custom "$ccls/call"))
+(defun ccls/vars (kind) (lsp-ui-peek-find-custom "$ccls/vars" `(:kind ,kind)))
+(defun ccls/base (levels) (lsp-ui-peek-find-custom "$ccls/inheritance" `(:levels ,levels)))
+(defun ccls/derived (levels) (lsp-ui-peek-find-custom "$ccls/inheritance" `(:levels ,levels :derived t)))
+(defun ccls/member (kind) (interactive) (lsp-ui-peek-find-custom "$ccls/member" `(:kind ,kind)))
+
+;; References w/ Role::Role
+(defun ccls/references-read () (interactive)
+  (lsp-ui-peek-find-custom "textDocument/references"
+    (plist-put (lsp--text-document-position-params) :role 8)))
+
+;; References w/ Role::Write
+(defun ccls/references-write ()
+  (interactive)
+  (lsp-ui-peek-find-custom "textDocument/references"
+   (plist-put (lsp--text-document-position-params) :role 16)))
+
+;; References w/ Role::Dynamic bit (macro expansions)
+(defun ccls/references-macro () (interactive)
+  (lsp-ui-peek-find-custom "textDocument/references"
+   (plist-put (lsp--text-document-position-params) :role 64)))
+
+;; References w/o Role::Call bit (e.g. where functions are taken addresses)
+(defun ccls/references-not-call () (interactive)
+  (lsp-ui-peek-find-custom "textDocument/references"
+   (plist-put (lsp--text-document-position-params) :excludeRole 32)))
 
 (display-battery-mode t)
 
