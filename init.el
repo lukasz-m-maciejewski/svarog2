@@ -4,21 +4,37 @@
 (require 'map)
 (require 'subr-x)
 
+(when window-system
+  (blink-cursor-mode 0)                          ; Disable the cursor blinking
+  (scroll-bar-mode 0)                            ; Disable the scroll bar
+  (tool-bar-mode 0)                              ; Disable the tool bar
+  (tooltip-mode 0))                              ; Disable the tooltips
+
 ;;;; Code:
-(setq gc-cons-threshold 100000000)
-(setq make-backup-files nil) ; stop creating backup~ files
-(setq auto-save-default nil) ; stop creating #autosave# files
+(setq-default
+ gc-cons-threshold most-positive-fixnum
+ make-backup-files nil ; stop creating backup~ files
+ auto-save-default nil  ; stop creating #autosave# files
+ help-window-select t                            ; Focus new help windows when opened
+ indent-tabs-mode nil                            ; Don't use tabs to indent
+ inhibit-startup-screen t                        ; Disable start-up screen
+ initial-scratch-message ""
+ delete-selection-mode t ; Delete marked text on typing
+ inhibit-startup-message t
+  python-intent-offset 4
+ )
 
 ;; Save backup files in the temporary directory
 (setq backup-directory-alist `((".*" . ,temporary-file-directory))
       auto-save-file-name-transforms `((".*" ,temporary-file-directory t)))
 
-(menu-bar-mode -1)
-(scroll-bar-mode -1)
-(tool-bar-mode -1)
-(delete-selection-mode 1)
-;; Don't show the startup message
-(setq inhibit-startup-message t)
+
+(add-hook 'after-init-hook (lambda () (setq gc-cons-threshold 800000)))
+(add-hook 'focus-out-hook 'garbage-collect)
+
+(fset 'yes-or-no-p 'y-or-n-p)                    ; Replace yes/no prompts with y/n
+(global-visual-line-mode t) ; Soft wrap long lines.
+(winner-mode 1)
 
 (setq straight-repository-branch "develop")
 
@@ -183,8 +199,8 @@ as in `defun'."
 
 (setq recentf-save-file (expand-file-name "recentf" svarog/config-local-directory))
 
-(use-package graphene-meta-theme
-  :demand t)
+;; (use-package graphene-meta-theme
+;;   :demand t)
 
 (use-package solarized-theme
   :config
@@ -197,7 +213,7 @@ as in `defun'."
         solarized-height-plus-3 1.0
         solarized-height-plus-4 1.0))
 (load-theme 'solarized-dark t)
-(load-theme 'graphene-meta t)
+;; (load-theme 'graphene-meta t)
 
 (use-package powerline
   :demand t
@@ -207,7 +223,7 @@ as in `defun'."
 (defun svarog/reload-theme (theme)
   "Reloads a THEME."
   (load-theme theme)
-  (load-theme 'graphene-meta)
+;;  (load-theme 'graphene-meta)
   (powerline-reset))
 
 (defun svarog/light-theme ()
@@ -226,20 +242,21 @@ as in `defun'."
 
 ;;;; Projects config
 
-(with-eval-after-load 'projectile
-  (projectile-register-project-type 'cpp-code '("projectile-cpp")
-                                    :configure "(mkdir build-debug; cd build-debug; cmake ../source -GNinja -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_BUILD_TYPE=Debug; cd ..; ln -s build-debug/compile_commands.json)"
-                                    :src-dir "source"
-                                    :compile "(cd build-debug; cmake --build . )"
-                                      :test "(cd build-debug; ctest .)"
-                                      :test-suffix ".test.cpp"
-                                      ))
+;; (with-eval-after-load 'projectile
+;;   (projectile-register-project-type 'cpp-code '("projectile-cpp")
+;;                                     :configure "(mkdir build-debug; cd build-debug; cmake ../source -GNinja -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_BUILD_TYPE=Debug; cd ..; ln -s build-debug/compile_commands.json)"
+;;                                     :src-dir "source"
+;;                                     :compile "(cd build-debug; cmake --build . )"
+;;                                       :test "(cd build-debug; ctest .)"
+;;                                       :test-suffix ".test.cpp"
+;;                                       ))
 
 (use-package projectile
   :config
   (setq projectile-cache-file (concat svarog/config-local-directory "projectile.cache")
         projectile-known-projects-file (expand-file-name "projectile-bookmarks.eld"
-                                                         svarog/config-local-directory))
+                                                         svarog/config-local-directory)
+        projectile-completion-system 'helm)
   (projectile-mode +1)
   :blackout t)
 
@@ -418,23 +435,24 @@ backends will still be included.")
 
 (use-package rust-mode)
 
-;; (use-package cquery
-;;   :demand t
-;;   :config
-;;   (svarog/defhook enable-lsp () c++-mode-hook "Enable lsp at file open."
-;;                   (lsp-cquery-enable)))
-
-(use-package ccls
+(use-package cquery
   :demand t
   :config
-  (setq ccls-executable "/usr/bin/ccls")
-  (setq ccls-sem-highlight-method 'font-lock)
-  ;; alternatively, (setq ccls-sem-highlight-method 'overlay)
-  )
+  (svarog/defhook enable-lsp () c++-mode-hook "Enable lsp at file open."
+                  (lsp-cquery-enable)))
 
-(svarog/defhook enable-ccls () c++-mode-hook "Enable ccls."
-                (require 'ccls)
-                (lsp))
+;; (use-package ccls
+;;   :demand t
+;;   :config
+;;   (setq ccls-executable "/usr/bin/ccls")
+;;   (setq ccls-sem-highlight-method 'font-lock)
+;;   ;; alternatively, (setq ccls-sem-highlight-method 'overlay)
+;;   )
+
+;; (svarog/defhook enable-ccls () c++-mode-hook "Enable ccls."
+;;                 (require 'ccls)
+;;                 ;; (lsp)
+;;                 )
 
 (defun ccls/callee () (interactive) (lsp-ui-peek-find-custom "$ccls/call" '(:callee t)))
 (defun ccls/caller () (interactive) (lsp-ui-peek-find-custom "$ccls/call"))
@@ -516,6 +534,7 @@ backends will still be included.")
 
 
 (use-package bazel-mode
+  :demand t
   :config
   (add-to-list 'auto-mode-alist '("/BUILD\\(\\..*\\)?\\'" . bazel-mode))
   (add-to-list 'auto-mode-alist '("/WORKSPACE\\'" . bazel-mode))
@@ -658,17 +677,11 @@ backends will still be included.")
 
 (use-package which-key
   :blackout t
+  :demand t
   :config
   (which-key-mode))
 
-;; Delete marked text on typing
-(delete-selection-mode t)
 
-;; Soft-wrap lines
-(global-visual-line-mode t)
-
-(setq-default indent-tabs-mode nil)
-(setq-default python-intent-offset 4)
 
 ;; Better scrolling with mouse wheel/trackpad.
 (unless (and (boundp 'mac-mouse-wheel-smooth-scroll) mac-mouse-wheel-smooth-scroll)
