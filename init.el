@@ -8,7 +8,8 @@
   (blink-cursor-mode 0)                          ; Disable the cursor blinking
   (scroll-bar-mode 0)                            ; Disable the scroll bar
   (tool-bar-mode 0)                              ; Disable the tool bar
-  (tooltip-mode 0))                              ; Disable the tooltips
+  (tooltip-mode 0)                               ; Disable the tooltips
+  (menu-bar-mode 0))
 
 ;;;; Code:
 (setq-default
@@ -21,7 +22,8 @@
  initial-scratch-message ""
  delete-selection-mode t ; Delete marked text on typing
  inhibit-startup-message t
-  python-intent-offset 4
+ python-intent-offset 4
+ vc-handled-backends nil ; disables build-in version control
  )
 
 ;; Save backup files in the temporary directory
@@ -34,7 +36,10 @@
 
 (fset 'yes-or-no-p 'y-or-n-p)                    ; Replace yes/no prompts with y/n
 (global-visual-line-mode t) ; Soft wrap long lines.
+(setq winner-dont-bind-my-keys t)
 (winner-mode 1)
+(global-set-key (kbd "C-c u") 'winner-undo)
+(global-set-key (kbd "C-c r") 'winner-redo)
 
 (setq straight-repository-branch "develop")
 
@@ -169,7 +174,7 @@ as in `defun'."
   :demand t)
 
 (defvar svarog//keymap (make-sparse-keymap)
-  "Keymap for Svarog prefix commands. Bound under \\[radian-keymap].")
+  "Keymap for Svarog prefix commands. Bound under \\[svarog//keymap].")
 
 (bind-key* "M-p" svarog//keymap)
 (defmacro svarog/bind-key (key-name command &optional predicate)
@@ -181,10 +186,11 @@ as in `defun'."
 
 (svarog/bind-key "e i" #'svarog/find-init-file)
 
+(define-key global-map [(control x)(control b)] (function ibuffer))
+
 ;;;; Version control
 (use-package git)
 
-(setq vc-handled-backends nil) ; disables build-in version control
 (use-package magit
   :demand t)
 
@@ -223,7 +229,6 @@ as in `defun'."
 (defun svarog/reload-theme (theme)
   "Reloads a THEME."
   (load-theme theme)
-;;  (load-theme 'graphene-meta)
   (powerline-reset))
 
 (defun svarog/light-theme ()
@@ -239,6 +244,67 @@ as in `defun'."
 (use-feature uniquify
   :config
   (setq uniquify-buffer-name-style 'forward))
+
+(use-feature windmove
+  :demand t
+  :config
+  (global-set-key [(control c) (left)] (function windmove-left))
+  (global-set-key [(control c) (right)] (function windmove-right))
+  (global-set-key [(control c) (up)] (function windmove-up))
+  (global-set-key [(control c) (down)] (function windmove-down))
+
+  (defun move-buffer-up ()
+    "Move the current window up, if possible."
+    (interactive)
+    (let ((other-win (windmove-find-other-window 'up))
+          (buffer (window-buffer (selected-window))))
+      (cond (other-win
+             (set-window-buffer (selected-window) (window-buffer other-win))
+             (set-window-buffer other-win buffer)
+             (select-window other-win))
+            (t
+             (message "No window up from selected window!")))))
+  (global-set-key [(control c) (shift up)] (function move-buffer-up))
+
+  (defun move-buffer-down ()
+    "Move the current window down, if possible."
+    (interactive)
+    (let ((other-win (windmove-find-other-window 'down))
+          (buffer (window-buffer (selected-window))))
+      (cond ((and other-win
+                  (not (window-minibuffer-p other-win)))
+             (set-window-buffer (selected-window) (window-buffer other-win))
+             (set-window-buffer other-win buffer)
+             (select-window other-win))
+            (t
+             (message "No window down from selected window")))))
+  (global-set-key [(control c) (shift down)]  (function move-buffer-down))
+
+  (defun move-buffer-left ()
+    "Move the current window to the left, if possible."
+    (interactive)
+    (let ((other-win (windmove-find-other-window 'left))
+          (buffer    (window-buffer (selected-window))))
+      (cond (other-win
+             (set-window-buffer (selected-window) (window-buffer other-win))
+             (set-window-buffer other-win buffer)
+             (select-window other-win))
+            (t
+             (message "No window left from selected window")))))
+  (global-set-key [(control c) (shift left)]  (function move-buffer-left))
+
+  (defun move-buffer-right ()
+    "Move the current window to the right, if possible."
+    (interactive)
+    (let ((other-win (windmove-find-other-window 'right))
+          (buffer    (window-buffer (selected-window))))
+      (cond (other-win
+             (set-window-buffer (selected-window) (window-buffer other-win))
+             (set-window-buffer other-win buffer)
+             (select-window other-win))
+            (t
+             (message "No window right from selected window")))))
+(global-set-key [(control c) (shift right)] (function move-buffer-right)))
 
 ;;;; Projects config
 
@@ -259,13 +325,6 @@ as in `defun'."
         projectile-completion-system 'helm)
   (projectile-mode +1)
   :blackout t)
-
-(use-package lsp-mode :commands lsp
-  :config
-  (setq lsp-enable-snippet nil
-        lsp-prefer-flymake nil))
-
-(use-package lsp-ui :commands lsp-ui-mode)
 
 ;;;; Autocompletion
 
@@ -405,12 +464,6 @@ backends will still be included.")
   ;; Use `prescient' for Company menus.
   (company-prescient-mode +1))
 
-(use-package company-lsp
-  :demand t
-  :config
-  (push 'company-lsp company-backends))
-
-
 ;;; C++ config:
 (svarog/defhook c-mode-common-configuration () c-mode-common-hook
                 "Common conf for C mode."
@@ -432,55 +485,13 @@ backends will still be included.")
                 (c-set-offset 'substatement-open 0)
                 (c-set-offset 'label '+))
 
-
-(use-package rust-mode)
-
-(use-package cquery
+(use-feature rtags
   :demand t
   :config
-  (svarog/defhook enable-lsp () c++-mode-hook "Enable lsp at file open."
-                  (lsp-cquery-enable)))
+  (rtags-enable-standard-keybindings))
 
-;; (use-package ccls
-;;   :demand t
-;;   :config
-;;   (setq ccls-executable "/usr/bin/ccls")
-;;   (setq ccls-sem-highlight-method 'font-lock)
-;;   ;; alternatively, (setq ccls-sem-highlight-method 'overlay)
-;;   )
 
-;; (svarog/defhook enable-ccls () c++-mode-hook "Enable ccls."
-;;                 (require 'ccls)
-;;                 ;; (lsp)
-;;                 )
-
-(defun ccls/callee () (interactive) (lsp-ui-peek-find-custom "$ccls/call" '(:callee t)))
-(defun ccls/caller () (interactive) (lsp-ui-peek-find-custom "$ccls/call"))
-(defun ccls/vars (kind) (lsp-ui-peek-find-custom "$ccls/vars" `(:kind ,kind)))
-(defun ccls/base (levels) (lsp-ui-peek-find-custom "$ccls/inheritance" `(:levels ,levels)))
-(defun ccls/derived (levels) (lsp-ui-peek-find-custom "$ccls/inheritance" `(:levels ,levels :derived t)))
-(defun ccls/member (kind) (interactive) (lsp-ui-peek-find-custom "$ccls/member" `(:kind ,kind)))
-
-;; References w/ Role::Role
-(defun ccls/references-read () (interactive)
-  (lsp-ui-peek-find-custom "textDocument/references"
-    (plist-put (lsp--text-document-position-params) :role 8)))
-
-;; References w/ Role::Write
-(defun ccls/references-write ()
-  (interactive)
-  (lsp-ui-peek-find-custom "textDocument/references"
-   (plist-put (lsp--text-document-position-params) :role 16)))
-
-;; References w/ Role::Dynamic bit (macro expansions)
-(defun ccls/references-macro () (interactive)
-  (lsp-ui-peek-find-custom "textDocument/references"
-   (plist-put (lsp--text-document-position-params) :role 64)))
-
-;; References w/o Role::Call bit (e.g. where functions are taken addresses)
-(defun ccls/references-not-call () (interactive)
-  (lsp-ui-peek-find-custom "textDocument/references"
-   (plist-put (lsp--text-document-position-params) :excludeRole 32)))
+(use-package rust-mode)
 
 (display-battery-mode t)
 
@@ -552,10 +563,16 @@ backends will still be included.")
   :config
   (global-undo-tree-mode))
 
+(use-package nlinum
+  :demand t
+  :config
+  (setq nlinum-highlight-current-line t)
+  (global-nlinum-mode))
+
 (svarog/defhook goodies-for-prog-mode () prog-mode-hook "Goodies for prog-mode."
                 (electric-indent-mode t)
-                (setq linum-format " %4d ")
-                (linum-mode t)
+                ;; (setq linum-format " %4d ")
+                ;; (linum-mode t)
                 (auto-revert-mode t)
                 (setq whitespace-line-column 80)
                 (setq whitespace-style '(face tabs empty trailing newline))
@@ -712,3 +729,5 @@ backends will still be included.")
 (blackout 'whitespace-mode)
 (blackout 'hs-minor-mode)
 (blackout 'abbrev-mode)
+
+(server-start)
