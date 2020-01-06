@@ -184,7 +184,7 @@ as in `defun'."
   `(bind-key ,key-name ,command svarog//keymap ,predicate))
 
 (defun svarog/find-init-file () (interactive)
-        (find-file "~/.emacs.d/init.el"))
+       (find-file "~/.emacs.d/init.el"))
 
 (svarog/bind-key "e i" #'svarog/find-init-file)
 
@@ -194,7 +194,52 @@ as in `defun'."
 (use-package git)
 
 (use-package magit
-  :demand t)
+  :demand t
+  :config
+  (defun exordium-magit-log ()
+    "If in `dired-mode', call `magit-dired-log'. Otherwise call
+`magit-log-current (or `magit-log' if former not present)."
+    (interactive)
+    (if (eq 'dired-mode major-mode)
+        (call-interactively 'magit-dired-log)
+      (if (fboundp 'magit-log-current)
+          (call-interactively 'magit-log-current)
+        (call-interactively 'magit-log))))
+  ;; Keys
+  (define-prefix-command 'exordium-git-map nil)
+  (define-key exordium-git-map (kbd "s") (function magit-status))
+  (define-key exordium-git-map (kbd "l") 'exordium-magit-log)
+  (define-key exordium-git-map (kbd "f")
+    (if (fboundp 'magit-log-buffer-file)
+        (function magit-log-buffer-file)
+      (function magit-file-log)))
+  (define-key exordium-git-map (kbd "b")
+    (if (fboundp 'magit-blame)
+        (function magit-blame)
+      (function magit-blame-mode)))
+  (global-set-key (kbd "C-c g") 'exordium-git-map)
+  ;; Make `magit-status' run alone in the frame, and then restore the old window
+  ;; configuration when you quit out of magit.
+  (defadvice magit-status (around magit-fullscreen activate)
+    (window-configuration-to-register :magit-fullscreen)
+    ad-do-it
+    (delete-other-windows))
+  ;; Make `magit-log' run alone in the frame, and then restore the old window
+  ;; configuration when you quit out of magit.
+  (defadvice magit-log (around magit-fullscreen activate)
+    (window-configuration-to-register :magit-fullscreen)
+    ad-do-it
+    (delete-other-windows))
+  (defun magit-quit-session ()
+    "Restores the previous window configuration and kills the magit buffer"
+    (interactive)
+    (kill-buffer)
+    (jump-to-register :magit-fullscreen))
+  (define-key magit-status-mode-map (kbd "q") 'magit-quit-session)
+  ;; Don't show "MRev" in the modeline
+  (when (bound-and-true-p magit-auto-revert-mode)
+    (diminish 'magit-auto-revert-mode))
+  )
 
 (defconst svarog/config-local-directory
   (concat user-emacs-directory "config-local/"))
@@ -306,7 +351,7 @@ as in `defun'."
              (select-window other-win))
             (t
              (message "No window right from selected window")))))
-(global-set-key [(control c) (shift right)] (function move-buffer-right)))
+  (global-set-key [(control c) (shift right)] (function move-buffer-right)))
 
 ;;;; Projects config
 
@@ -534,14 +579,14 @@ backends will still be included.")
 
   (svarog/defhook
       helm-hide-minibuffer-maybe () helm-minibuffer-set-up-hook
-    "Hide minibuffer in Helm session if we use the header line as input field."
-    (when (with-helm-buffer helm-echo-input-in-header-line)
-      (let ((ov (make-overlay (point-min) (point-max) nil nil t)))
-        (overlay-put ov 'window (selected-window))
-        (overlay-put ov 'face
-                     (let ((bg-color (face-background 'default nil)))
-                       `(:background ,bg-color :foreground ,bg-color)))
-        (setq-local cursor-type nil))))
+      "Hide minibuffer in Helm session if we use the header line as input field."
+      (when (with-helm-buffer helm-echo-input-in-header-line)
+        (let ((ov (make-overlay (point-min) (point-max) nil nil t)))
+          (overlay-put ov 'window (selected-window))
+          (overlay-put ov 'face
+                       (let ((bg-color (face-background 'default nil)))
+                         `(:background ,bg-color :foreground ,bg-color)))
+          (setq-local cursor-type nil))))
 
   (setq helm-autoresize-max-height 0)
   (setq helm-autoresize-min-height 20)
@@ -644,7 +689,7 @@ backends will still be included.")
   (when (version<= "27" emacs-version)
     (dolist (fun '(c-electric-paren c-electric-brace))
       (add-to-list 'sp--special-self-insert-commands fun)))
-    (defun radian--smartparens-indent-new-pair (&rest _)
+  (defun radian--smartparens-indent-new-pair (&rest _)
     "Insert an extra newline after point, and reindent."
     (newline)
     (indent-according-to-mode)
@@ -707,6 +752,16 @@ backends will still be included.")
 (use-package helm-swoop
   :bind ("C-S-s" . (function helm-swoop)))
 
+(use-package helm-ag
+  :bind ("C-S-r" . helm-ag-project-root))
+
+(setq helm-M-x-fuzzy-match t
+      helm-buffers-fuzzy-matching t
+      helm-recentf-fuzzy-match t
+      helm-ff-fuzzy-matching t
+      helm-ag-fuzzy-match t
+      helm-buffer-details-flag nil
+      helm-ag-insert-at-point 'symbol)
 
 ;; Better scrolling with mouse wheel/trackpad.
 (unless (and (boundp 'mac-mouse-wheel-smooth-scroll) mac-mouse-wheel-smooth-scroll)
