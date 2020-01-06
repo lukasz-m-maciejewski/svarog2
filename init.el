@@ -4,6 +4,8 @@
 (require 'map)
 (require 'subr-x)
 
+(add-to-list 'default-frame-alist '(fullscreen . maximized))
+
 (when window-system
   (blink-cursor-mode 0)                          ; Disable the cursor blinking
   (scroll-bar-mode 0)                            ; Disable the scroll bar
@@ -324,6 +326,10 @@ as in `defun'."
                                                          svarog/config-local-directory)
         projectile-completion-system 'helm)
   (projectile-mode +1)
+  :blackout t)
+
+(use-package helm-projectile
+  :config (helm-projectile-on)
   :blackout t)
 
 ;;;; Autocompletion
@@ -698,6 +704,8 @@ backends will still be included.")
   :config
   (which-key-mode))
 
+(use-package helm-swoop
+  :bind ("C-S-s" . (function helm-swoop)))
 
 
 ;; Better scrolling with mouse wheel/trackpad.
@@ -709,12 +717,12 @@ backends will still be included.")
   (global-set-key [triple-wheel-down] (lambda () (interactive) (scroll-up-command 4)))
   (global-set-key [triple-wheel-up] (lambda () (interactive) (scroll-down-command 4))))
 
-;; Character encodings default to utf-8.
-(prefer-coding-system 'utf-8)
-(set-language-environment 'utf-8)
-(set-default-coding-systems 'utf-8)
-(set-terminal-coding-system 'utf-8)
-(set-selection-coding-system 'utf-8)
+;; ;; Character encodings default to utf-8.
+;; (prefer-coding-system 'utf-8)
+;; (set-language-environment 'utf-8)
+;; (set-default-coding-systems 'utf-8)
+;; (set-terminal-coding-system 'utf-8)
+;; (set-selection-coding-system 'utf-8)
 
 ;; apply syntax highlighting to all buffers
 (global-font-lock-mode t)
