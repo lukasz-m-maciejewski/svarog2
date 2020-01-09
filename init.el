@@ -20,6 +20,7 @@
  auto-save-default nil  ; stop creating #autosave# files
  help-window-select t                            ; Focus new help windows when opened
  indent-tabs-mode nil                            ; Don't use tabs to indent
+ tab-width 2
  inhibit-startup-screen t                        ; Disable start-up screen
  initial-scratch-message ""
  delete-selection-mode t ; Delete marked text on typing
@@ -238,7 +239,7 @@ as in `defun'."
   (define-key magit-status-mode-map (kbd "q") 'magit-quit-session)
   ;; Don't show "MRev" in the modeline
   (when (bound-and-true-p magit-auto-revert-mode)
-    (diminish 'magit-auto-revert-mode))
+    (blackout 'magit-auto-revert-mode))
   )
 
 (defconst svarog/config-local-directory
@@ -762,6 +763,11 @@ backends will still be included.")
       helm-ag-fuzzy-match t
       helm-buffer-details-flag nil
       helm-ag-insert-at-point 'symbol)
+
+(use-package multi-term
+  :bind ("C-t" . multi-term-dedicated-toggle))
+
+(use-package helm-mt)
 
 ;; Better scrolling with mouse wheel/trackpad.
 (unless (and (boundp 'mac-mouse-wheel-smooth-scroll) mac-mouse-wheel-smooth-scroll)
