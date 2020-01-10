@@ -6,6 +6,19 @@
 
 (add-to-list 'default-frame-alist '(fullscreen . maximized))
 
+(require 'url-vars)
+
+(if (getenv "HTTP_PROXY")
+    (add-to-list 'url-proxy-services `("http" . ,(getenv "HTTP_PROXY"))))
+(if (getenv "HTTPS_PROXY")
+    (add-to-list 'url-proxy-services `("https" . ,(getenv "HTTPS_PROXY"))))
+(if (getenv "FTP_PROXY")
+    (add-to-list 'url-proxy-services `("ftp" . ,(getenv "FTP_PROXY"))))
+(if (getenv "RSYNC_PROXY")
+    (add-to-list 'url-proxy-services `("rsync" . ,(getenv "RSYNC_PROXY"))))
+(if (getenv "NO_PROXY")
+    (add-to-list 'url-proxy-services `("no_proxy" . ,(getenv "NO_PROXY"))))
+
 (when window-system
   (blink-cursor-mode 0)                          ; Disable the cursor blinking
   (scroll-bar-mode 0)                            ; Disable the scroll bar
@@ -542,7 +555,6 @@ backends will still be included.")
   :config
   (rtags-enable-standard-keybindings))
 
-
 (use-package rust-mode)
 
 (display-battery-mode t)
@@ -769,6 +781,12 @@ backends will still be included.")
 
 (use-package helm-mt)
 
+(use-package avy
+  :bind ("C-." . avy-goto-word-or-subword-1))
+
+(use-package ace-window
+  :bind ("M-o" . ace-window))
+
 ;; Better scrolling with mouse wheel/trackpad.
 (unless (and (boundp 'mac-mouse-wheel-smooth-scroll) mac-mouse-wheel-smooth-scroll)
   (global-set-key [wheel-down] (lambda () (interactive) (scroll-up-command 1)))
@@ -778,14 +796,7 @@ backends will still be included.")
   (global-set-key [triple-wheel-down] (lambda () (interactive) (scroll-up-command 4)))
   (global-set-key [triple-wheel-up] (lambda () (interactive) (scroll-down-command 4))))
 
-;; ;; Character encodings default to utf-8.
-;; (prefer-coding-system 'utf-8)
-;; (set-language-environment 'utf-8)
-;; (set-default-coding-systems 'utf-8)
-;; (set-terminal-coding-system 'utf-8)
-;; (set-selection-coding-system 'utf-8)
-
-;; apply syntax highlighting to all buffers
+;; Apply syntax highlighting to all buffers.
 (global-font-lock-mode t)
 
 (blackout 'company-mode)
