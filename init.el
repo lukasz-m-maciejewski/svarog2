@@ -29,23 +29,26 @@
 ;;;; Code:
 (setq-default
  gc-cons-threshold most-positive-fixnum
- make-backup-files nil ; stop creating backup~ files
- auto-save-default nil  ; stop creating #autosave# files
- help-window-select t                            ; Focus new help windows when opened
- indent-tabs-mode nil                            ; Don't use tabs to indent
+ make-backup-files nil                  ; Stop creating backup~ files.
+ auto-save-default nil                  ; Stop creating #autosave# files.
+ help-window-select t                   ; Focus new help windows when opened.
+ indent-tabs-mode nil                   ; Don't use tabs to indent.
  tab-width 2
- inhibit-startup-screen t                        ; Disable start-up screen
+ inhibit-startup-screen t               ; Disable start-up screen.
  initial-scratch-message ""
- delete-selection-mode t ; Delete marked text on typing
+ delete-selection-mode t                ; Delete marked text on typing.
  inhibit-startup-message t
  python-intent-offset 4
- vc-handled-backends nil ; disables build-in version control
+ vc-handled-backends nil                ; Disables build-in version control.
  )
+
+;;; We need to call the `delete-selection-mode' function here;
+;;; only setting the variable does not seem to have any effect.
+(delete-selection-mode)
 
 ;; Save backup files in the temporary directory
 (setq backup-directory-alist `((".*" . ,temporary-file-directory))
       auto-save-file-name-transforms `((".*" ,temporary-file-directory t)))
-
 
 (add-hook 'after-init-hook (lambda () (setq gc-cons-threshold 800000)))
 (add-hook 'focus-out-hook 'garbage-collect)
