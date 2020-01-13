@@ -779,16 +779,19 @@ backends will still be included.")
       helm-buffer-details-flag nil
       helm-ag-insert-at-point 'symbol)
 
-(use-package multi-term
-  :bind ("C-t" . multi-term-dedicated-toggle))
-
-(use-package helm-mt)
-
 (use-package avy
   :bind ("C-." . avy-goto-word-or-subword-1))
 
 (use-package ace-window
   :bind ("M-o" . ace-window))
+
+(use-feature bind-key)
+(bind-key* "M-o" 'ace-window)
+
+(use-package multi-term
+  :bind ("C-t" . multi-term-dedicated-toggle))
+
+(use-package helm-mt)
 
 ;; Better scrolling with mouse wheel/trackpad.
 (unless (and (boundp 'mac-mouse-wheel-smooth-scroll) mac-mouse-wheel-smooth-scroll)
