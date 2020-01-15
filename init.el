@@ -553,10 +553,13 @@ backends will still be included.")
                 (c-set-offset 'substatement-open 0)
                 (c-set-offset 'label '+))
 
+;;; For rtags we have `use-feature' because we expect rtags to be installed by the OS.
 (use-feature rtags
   :demand t
   :config
   (rtags-enable-standard-keybindings))
+
+(use-package clang-format)
 
 (use-package rust-mode)
 
@@ -792,6 +795,8 @@ backends will still be included.")
   :bind ("C-t" . multi-term-dedicated-toggle))
 
 (use-package helm-mt)
+
+(use-package ag)
 
 ;; Better scrolling with mouse wheel/trackpad.
 (unless (and (boundp 'mac-mouse-wheel-smooth-scroll) mac-mouse-wheel-smooth-scroll)
