@@ -164,6 +164,9 @@ as in `defun'."
 
 (straight-use-package 'use-package)
 
+;; Helpful package for easier keybindings. Part of use-package.
+(use-feature bind-key)
+
 ;; Package `blackout' provides a convenient function for customizing
 ;; mode lighters. It supports both major and minor modes with the same
 ;; interface, and includes `use-package' integration. The features are
@@ -382,13 +385,17 @@ as in `defun'."
 ;;                                       ))
 
 (use-package projectile
+  :ensure t
   :config
   (setq projectile-cache-file (concat svarog/config-local-directory "projectile.cache")
         projectile-known-projects-file (expand-file-name "projectile-bookmarks.eld"
                                                          svarog/config-local-directory)
-        projectile-completion-system 'helm)
-  (projectile-mode +1)
-  :blackout t)
+        projectile-completion-system 'helm
+        projectile-project-search-path '("~/code/"))
+  (define-key projectile-mode-map (kbd "C-c p") 'projectile-command-map)
+;;  (projectile-mode +1)
+  )
+(projectile-mode +1)
 
 (use-package helm-projectile
   :config (helm-projectile-on)
@@ -536,8 +543,8 @@ backends will still be included.")
 (svarog/defhook c-mode-common-configuration () c-mode-common-hook
                 "Common conf for C mode."
                 (c-set-style "bsd")
-                (setq c-basic-offset 4
-                      tab-width 4
+                (setq c-basic-offset 2
+                      tab-width 2
                       indent-tabs-mode nil
                       c-tab-always-indent t
                       c-echo-syntactic-information-p t)
@@ -559,7 +566,19 @@ backends will still be included.")
   :config
   (rtags-enable-standard-keybindings))
 
-(use-package clang-format)
+;; (use-package lsp-mode :commands lsp)
+;; (use-package lsp-ui :commands lsp-ui-mode)
+;; (use-package company-lsp :commands company-lsp)
+
+;; (use-package ccls
+;;   :hook ((c-mode c++-mode objc-mode cuda-mode) .
+;;          (lambda () (require 'ccls) (lsp))))
+
+;; (setq ccls-executable "/usr/bin/ccls")
+;; (setq ccls-args '("--log-file=/tmp/ccls.log -v=1"))
+
+(use-package clang-format
+  :bind ("C-c f" . clang-format-buffer))
 
 (use-package rust-mode)
 
@@ -698,6 +717,9 @@ backends will still be included.")
     :config
     (add-to-list 'sp-ignore-modes-list #'org-agenda-mode))
 
+  (bind-keys ("C-c l" . org-store-link)
+             ("C-c a" . org-agenda))
+
   ;; Make C-k kill the sexp following point in Lisp modes, instead of
   ;; just the current line.
   (bind-key [remap kill-line] #'sp-kill-hybrid-sexp smartparens-mode-map
@@ -788,7 +810,6 @@ backends will still be included.")
 (use-package ace-window
   :bind ("M-o" . ace-window))
 
-(use-feature bind-key)
 (bind-key* "M-o" 'ace-window)
 
 (use-package multi-term
