@@ -401,6 +401,54 @@ as in `defun'."
   :config (helm-projectile-on)
   :blackout t)
 
+(use-package lsp-mode
+  :commands lsp
+  :config
+  (setq lsp-file-watch-threshold 150000)
+  )
+(use-package lsp-ui :commands lsp-ui-mode)
+(use-package company-lsp :commands company-lsp)
+
+(use-package ccls
+  :ensure t
+  :config
+  (setq ccls-executable "/usr/bin/ccls")
+  (setq lsp-prefer-flymake nil)
+  (setq-default flycheck-disabled-checkers '(c/c++-clang c/c++-cppcheck c/c++-gcc))
+  (setq company-transformers nil
+        company-lsp-async t
+        company-lsp-cache-candidates nil)
+  :hook ((c-mode c++-mode) .
+         (lambda () (require 'ccls) (lsp))))
+
+(defun ccls/callee () (interactive) (lsp-ui-peek-find-custom "$ccls/call" '(:callee t)))
+(defun ccls/caller () (interactive) (lsp-ui-peek-find-custom "$ccls/call"))
+(defun ccls/vars (kind) (lsp-ui-peek-find-custom "$ccls/vars" `(:kind ,kind)))
+(defun ccls/base (levels) (lsp-ui-peek-find-custom "$ccls/inheritance" `(:levels ,levels)))
+(defun ccls/derived (levels) (lsp-ui-peek-find-custom "$ccls/inheritance" `(:levels ,levels :derived t)))
+(defun ccls/member (kind) (interactive) (lsp-ui-peek-find-custom "$ccls/member" `(:kind ,kind)))
+
+;; References w/ Role::Role
+(defun ccls/references-read () (interactive)
+  (lsp-ui-peek-find-custom "textDocument/references"
+    (plist-put (lsp--text-document-position-params) :role 8)))
+
+;; References w/ Role::Write
+(defun ccls/references-write ()
+  (interactive)
+  (lsp-ui-peek-find-custom "textDocument/references"
+   (plist-put (lsp--text-document-position-params) :role 16)))
+
+;; References w/ Role::Dynamic bit (macro expansions)
+(defun ccls/references-macro () (interactive)
+  (lsp-ui-peek-find-custom "textDocument/references"
+   (plist-put (lsp--text-document-position-params) :role 64)))
+
+;; References w/o Role::Call bit (e.g. where functions are taken addresses)
+(defun ccls/references-not-call () (interactive)
+  (lsp-ui-peek-find-custom "textDocument/references"
+                           (plist-put (lsp--text-document-position-params) :excludeRole 32)))
+
 ;;;; Autocompletion
 
 ;; Package `company' provides an in-buffer autocompletion framework.
@@ -411,15 +459,7 @@ as in `defun'."
 (use-package company
   :defer 0.5
   :init
-
-  (defvar radian--company-backends-global
-    '(company-capf
-      company-files
-      (company-dabbrev-code company-keywords)
-      company-dabbrev)
-    "Values for `company-backends' used everywhere.
-If `company-backends' is overridden by Radian, then these
-backends will still be included.")
+  ()
 
   :bind (;; Remap the standard Emacs keybindings for invoking
          ;; completion to instead use Company. You might think this
@@ -539,6 +579,30 @@ backends will still be included.")
   ;; Use `prescient' for Company menus.
   (company-prescient-mode +1))
 
+;; Package `company-lsp' provides a Company backend for `lsp-mode'.
+;; It's configured automatically by `lsp-mode'.
+(use-package company-lsp)
+;;   :init
+
+;;   (use-feature lsp
+;;     :config
+
+;;     (svarog/defadvice svarog//company-lsp-setup (&rest _)
+;;       :after #'lsp
+;;       "Disable `company-prescient' sorting by length in some contexts.
+;; Specifically, disable sorting by length if the LSP Company
+;; backend returns fuzzy-matched candidates, which implies that the
+;; backend has already sorted the candidates into a reasonable
+;; order."
+;;       (setq-local company-prescient-sort-length-enable
+;;                   (cl-dolist (w lsp--buffer-workspaces)
+;;                     (when (thread-first w
+;;                             (lsp--workspace-client)
+;;                             (lsp--client-server-id)
+;;                             (memq '(jsts-ls mspyls bash-ls texlab))
+;;                             (not))
+;;                       (cl-return t)))))))
+
 ;;; C++ config:
 (svarog/defhook c-mode-common-configuration () c-mode-common-hook
                 "Common conf for C mode."
@@ -561,20 +625,11 @@ backends will still be included.")
                 (c-set-offset 'label '+))
 
 ;;; For rtags we have `use-feature' because we expect rtags to be installed by the OS.
-(use-feature rtags
-  :demand t
-  :config
-  (rtags-enable-standard-keybindings))
+;; (use-feature rtags
+;;   :demand t
+;;   :config
+;;   (rtags-enable-standard-keybindings))
 
-;; (use-package lsp-mode :commands lsp)
-;; (use-package lsp-ui :commands lsp-ui-mode)
-;; (use-package company-lsp :commands company-lsp)
-
-;; (use-package ccls
-;;   :hook ((c-mode c++-mode objc-mode cuda-mode) .
-;;          (lambda () (require 'ccls) (lsp))))
-
-;; (setq ccls-executable "/usr/bin/ccls")
 ;; (setq ccls-args '("--log-file=/tmp/ccls.log -v=1"))
 
 (use-package clang-format
