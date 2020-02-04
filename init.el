@@ -192,9 +192,6 @@ as in `defun'."
                       (set-face-font 'default svarog//default-font))))
 
 ;;;; Svarog keymap
-(use-package bind-key
-  :demand t)
-
 (defvar svarog//keymap (make-sparse-keymap)
   "Keymap for Svarog prefix commands. Bound under \\[svarog//keymap].")
 
@@ -404,6 +401,7 @@ as in `defun'."
 (use-package lsp-mode
   :commands lsp
   :config
+  (setq lsp-enable-file-watchers nil)
   (setq lsp-file-watch-threshold 150000)
   )
 (use-package lsp-ui :commands lsp-ui-mode)
@@ -448,6 +446,8 @@ as in `defun'."
 (defun ccls/references-not-call () (interactive)
   (lsp-ui-peek-find-custom "textDocument/references"
                            (plist-put (lsp--text-document-position-params) :excludeRole 32)))
+
+(bind-key* "M-?" 'xref-find-references)
 
 ;;;; Autocompletion
 
@@ -625,10 +625,10 @@ as in `defun'."
                 (c-set-offset 'label '+))
 
 ;;; For rtags we have `use-feature' because we expect rtags to be installed by the OS.
-;; (use-feature rtags
-;;   :demand t
-;;   :config
-;;   (rtags-enable-standard-keybindings))
+(use-feature rtags
+  :demand t
+  :config
+  (rtags-enable-standard-keybindings))
 
 ;; (setq ccls-args '("--log-file=/tmp/ccls.log -v=1"))
 
@@ -747,7 +747,7 @@ as in `defun'."
 
   ;; Set up keybindings for s-expression navigation and manipulation
   ;; in the style of Paredit.
-  (sp-use-paredit-bindings)
+  ;; (sp-use-paredit-bindings)
 
   ;; Highlight matching delimiters.
   (show-smartparens-global-mode +1)
@@ -874,6 +874,13 @@ as in `defun'."
 
 (use-package ag)
 
+(use-package auto-highlight-symbol
+  :demand t
+  :config
+  (global-auto-highlight-symbol-mode t)
+  :blackout t
+  )
+
 ;; Better scrolling with mouse wheel/trackpad.
 (unless (and (boundp 'mac-mouse-wheel-smooth-scroll) mac-mouse-wheel-smooth-scroll)
   (global-set-key [wheel-down] (lambda () (interactive) (scroll-up-command 1)))
@@ -896,5 +903,23 @@ as in `defun'."
 (blackout 'whitespace-mode)
 (blackout 'hs-minor-mode)
 (blackout 'abbrev-mode)
+
+(mouse-wheel-mode -1)
+
+(global-set-key [wheel-up] 'ignore)
+(global-set-key [wheel-down] 'ignore)
+(global-set-key [double-wheel-up] 'ignore)
+(global-set-key [double-wheel-down] 'ignore)
+(global-set-key [triple-wheel-up] 'ignore)
+(global-set-key [triple-wheel-down] 'ignore)
+(global-set-key [mouse-4] 'ignore)
+(global-set-key [mouse-5] 'ignore)
+(global-set-key [mouse-6] 'ignore)
+(global-set-key [mouse-7] 'ignore)
+
+(use-package golden-ratio-scroll-screen
+  :bind (([remap scroll-down-command] . golden-ratio-scroll-screen-down)
+         ([remap scroll-up-command]   . golden-ratio-scroll-screen-up)))
+
 
 (server-start)
