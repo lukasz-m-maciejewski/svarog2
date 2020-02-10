@@ -4,3 +4,5 @@ auto-save-list
 config-local
 transient
 var/
+/svarog_local.el
+/svarog_local.org

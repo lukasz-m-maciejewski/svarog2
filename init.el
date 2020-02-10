@@ -630,6 +630,63 @@ as in `defun'."
   :config
   (rtags-enable-standard-keybindings))
 
+(define-derived-mode rtags-rdm-mode fundamental-mode
+  "rdm-log"
+  "Mode for viewing rdm logs"
+  :syntax-table rtags-rdm-mode-syntax-table
+  ;; Syntax highlighting:
+  (setq font-lock-defaults '(rtags-rdm-mode-keywords t t)))
+
+(defconst rtags-rdm-mode-syntax-table
+  ;; Defines a "comment" as anything that starts with a square bracket, e.g.
+  ;; [100%] /path/to/file.cpp in 437ms. (1259 syms, etc) (dirty)
+  (let ((synTable (make-syntax-table)))
+    (modify-syntax-entry ?\[ "< b" synTable)
+    (modify-syntax-entry ?\n "> b" synTable)
+    synTable))
+
+(defconst rtags-rdm-mode-keywords
+  (list '(rtags-rdm-match-record-error 0 'compilation-error)
+        '(rtags-rdm-match-record-warning 0 'compilation-warning)
+        '(rtags-rdm-match-record-note 0 'compilation-info)
+        '(rtags-rdm-match-record-done 0 'underline))
+  "Describes how to syntax highlight keywords in rtags-rdm-mode.")
+
+(defun rtags-start ()
+  "Start the rdm daemon in a subprocess and display output in a buffer. Also start the rtags diagonstic mode."
+  (interactive)
+  (setq rtags-autostart-diagnostics t)
+  (svarog//rtags-start-rdm-impl t))
+
+(defvar svarog-rtags-rdm-args "")
+(defvar svarog-complete-use-company t)
+
+(defun svarog//rtags-start-rdm-impl (&optional open-buffer)
+  "Start rdm in a subprocess. Open the rdm log buffer if open-buffer is true."
+  (let ((buffer (get-buffer-create "*RTags rdm*")))
+    (when open-buffer
+      (switch-to-buffer buffer))
+    (with-current-buffer buffer
+      (rtags-rdm-mode)
+      (read-only-mode))
+    (let ((process (start-process "rdm" buffer "rdm")))
+;;           (apply #'start-process "rdm" buffer "rdm" svarog-rtags-rdm-args ())))
+      (message "Started rdm - PID %d" (process-id process))))
+  (when (and (eq svarog-complete-use-company 't)
+             (not (member 'company-rtags company-backends)))
+    (push 'company-rtags company-backends)))
+
+
+(defun rtags-stop ()
+  "Stop both RTags diagnostics and rdm, if they are running."
+  (interactive)
+  (when (member 'company-rtags company-backends)
+    (setq company-backends (delete 'company-rtags company-backends)))
+  (rtags-quit-rdm)
+  (when (get-buffer "*RTags rdm*")
+    (let ((kill-buffer-query-functions nil))
+      (kill-buffer "*RTags rdm*"))))
+
 ;; (setq ccls-args '("--log-file=/tmp/ccls.log -v=1"))
 
 (use-package clang-format
@@ -640,6 +697,8 @@ as in `defun'."
 (display-battery-mode t)
 
 (use-package ledger-mode)
+
+(recentf-mode 1)
 
 (use-package helm
   :demand t
@@ -683,6 +742,7 @@ as in `defun'."
 
   (setq helm-autoresize-max-height 0)
   (setq helm-autoresize-min-height 20)
+  (setq helm-ff-file-name-history-use-recentf t)
   (helm-autoresize-mode t)
 
   (helm-mode t))
@@ -697,7 +757,14 @@ as in `defun'."
   (svarog/defhook autoformat-on-save () bazel-mode-hook "Autoformat on save."
                   (add-hook 'before-save-hook #'bazel-format nil t)))
 
-(use-package protobuf-mode)
+(defconst local-protobuf-style
+  '((c-basic-offset . 4)
+    (indent-tabs-mode . nil)))
+
+(use-package protobuf-mode
+  :config
+  (svarog/defhook svarog/set-proto-style () protobuf-mode-hook "Set protobuf style."
+    (c-add-style "local-protobuf-style" local-protobuf-style t)))
 
 ;;;; Editing tweaks
 
@@ -921,5 +988,11 @@ as in `defun'."
   :bind (([remap scroll-down-command] . golden-ratio-scroll-screen-down)
          ([remap scroll-up-command]   . golden-ratio-scroll-screen-up)))
 
+(require 'org-install)
+(require 'ob-tangle)
+
+(setq svarog/local-config-file (expand-file-name "svarog_local.org" (expand-file-name user-emacs-directory)))
+(when (file-exists-p svarog/local-config-file)
+  (org-babel-load-file svarog/local-config-file))
 
 (server-start)
