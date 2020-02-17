@@ -269,41 +269,65 @@ as in `defun'."
 
 (setq recentf-save-file (expand-file-name "recentf" svarog/config-local-directory))
 
-;; (use-package graphene-meta-theme
-;;   :demand t)
+(use-package all-the-icons)
 
-(use-package solarized-theme
-  :config
-  (setq solarized-distinct-fringe-background t
-        solarized-use-variable-pitch nil
-        solarized-high-contrast-mode-line t
-        solarized-height-minus-1 1.0
-        solarized-height-plus-1 1.0
-        solarized-height-plus-2 1.0
-        solarized-height-plus-3 1.0
-        solarized-height-plus-4 1.0))
-(load-theme 'solarized-dark t)
-;; (load-theme 'graphene-meta t)
+(use-package doom-modeline
+  :ensure t
+  :hook (after-init . doom-modeline-mode))
 
-(use-package powerline
+(use-package doom-themes
   :demand t
+  :custom-face
+  (cursor ((t (:background "BlanchedAlmond"))))
   :config
-  (powerline-default-theme))
+  ;; flashing mode-line on errors
+  (doom-themes-visual-bell-config)
+  ;; Corrects (and improves) org-mode's native fontification.
+  (doom-themes-org-config)
+  (load-theme 'doom-solarized-dark t))
 
-(defun svarog/reload-theme (theme)
-  "Reloads a THEME."
-  (load-theme theme)
-  (powerline-reset))
-
-(defun svarog/light-theme ()
-  "Set solarized light theme."
-  (interactive)
-  (svarog/reload-theme 'solarized-light))
-
-(defun svarog/dark-theme ()
-  "Set solarized dark theme."
-  (interactive)
-  (svarog/reload-theme 'solarized-dark))
+(use-package dashboard
+  :demand t
+  :blackout (dashboard-mode page-break-lines-mode)
+  :bind ("C-c d" . svarog/open-dashboard)
+  :custom
+  (dashboard-banner-logo-title "Close the world. Open the nExt.")
+  ;; (dashboard-startup-banner (expand-file-name "images/KEC_Dark_BK_Small.png" user-emacs-directory))
+  (dashboard-items '((recents  . 7)
+                     (bookmarks . 7)
+                     (agenda . 5)))
+  (initial-buffer-choice (lambda () (get-buffer dashboard-buffer-name)))
+  (dashboard-set-heading-icons t)
+  (dashboard-set-navigator t)
+  ;; (dashboard-navigator-buttons
+  ;;  (if (featurep 'all-the-icons)
+  ;;      `(((,(all-the-icons-octicon "mark-github" :height 1.1 :v-adjust -0.05)
+  ;;          "M-EMACS" "Browse M-EMACS Homepage"
+  ;;          (lambda (&rest _) (browse-url "https://github.com/MatthewZMD/.emacs.d")))
+  ;;         (,(all-the-icons-fileicon "elisp" :height 1.0 :v-adjust -0.1)
+  ;;          "Configuration" "" (lambda (&rest _) (edit-configs)))
+  ;;         (,(all-the-icons-faicon "cogs" :height 1.0 :v-adjust -0.1)
+  ;;          "Update" "" (lambda (&rest _) (auto-package-update-now)))))
+  ;;    `((("" "M-EMACS" "Browse M-EMACS Homepage"
+  ;;        (lambda (&rest _) (browse-url "https://github.com/MatthewZMD/.emacs.d")))
+  ;;       ("" "Configuration" "" (lambda (&rest _) (edit-configs)))
+  ;;       ("" "Update" "" (lambda (&rest _) (auto-package-update-now)))))))
+  :custom-face
+  (dashboard-banner-logo-title ((t (:family "Love LetterTW" :height 123))))
+  :config
+  (dashboard-modify-heading-icons '((recents . "file-text")
+                                    (bookmarks . "book")))
+  (dashboard-setup-startup-hook)
+  ;; Open Dashboard function
+  (defun svarog/open-dashboard ()
+    "Open the *dashboard* buffer and jump to the first widget."
+    (interactive)
+    (if (get-buffer dashboard-buffer-name)
+        (kill-buffer dashboard-buffer-name))
+    (dashboard-insert-startupify-lists)
+    (switch-to-buffer dashboard-buffer-name)
+    (goto-char (point-min))
+    (delete-other-windows)))
 
 (use-feature uniquify
   :config
@@ -372,17 +396,8 @@ as in `defun'."
 
 ;;;; Projects config
 
-;; (with-eval-after-load 'projectile
-;;   (projectile-register-project-type 'cpp-code '("projectile-cpp")
-;;                                     :configure "(mkdir build-debug; cd build-debug; cmake ../source -GNinja -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_BUILD_TYPE=Debug; cd ..; ln -s build-debug/compile_commands.json)"
-;;                                     :src-dir "source"
-;;                                     :compile "(cd build-debug; cmake --build . )"
-;;                                       :test "(cd build-debug; ctest .)"
-;;                                       :test-suffix ".test.cpp"
-;;                                       ))
-
 (use-package projectile
-  :ensure t
+  :demand t
   :config
   (setq projectile-cache-file (concat svarog/config-local-directory "projectile.cache")
         projectile-known-projects-file (expand-file-name "projectile-bookmarks.eld"
@@ -390,9 +405,7 @@ as in `defun'."
         projectile-completion-system 'helm
         projectile-project-search-path '("~/code/"))
   (define-key projectile-mode-map (kbd "C-c p") 'projectile-command-map)
-;;  (projectile-mode +1)
-  )
-(projectile-mode +1)
+  (projectile-mode +1))
 
 (use-package helm-projectile
   :config (helm-projectile-on)
@@ -995,4 +1008,4 @@ as in `defun'."
 (when (file-exists-p svarog/local-config-file)
   (org-babel-load-file svarog/local-config-file))
 
-(server-start)
+;; (server-start)

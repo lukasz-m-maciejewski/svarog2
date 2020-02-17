@@ -1,0 +1,2 @@
+* emacs-ipython-notebook
+https://github.com/millejoh/emacs-ipython-notebook
