@@ -805,8 +805,6 @@ as in `defun'."
 
 (svarog/defhook goodies-for-prog-mode () prog-mode-hook "Goodies for prog-mode."
                 (electric-indent-mode t)
-                ;; (setq linum-format " %4d ")
-                ;; (linum-mode t)
                 (auto-revert-mode t)
                 (setq whitespace-line-column 80)
                 (setq whitespace-style '(face tabs empty trailing newline))
@@ -819,6 +817,8 @@ as in `defun'."
 
 
 (add-hook 'before-save-hook 'whitespace-cleanup)
+
+(use-package yasnippet)
 
 (use-package smartparens
   :demand t
@@ -1018,4 +1018,4 @@ as in `defun'."
 (when (file-exists-p svarog/local-config-file)
   (org-babel-load-file svarog/local-config-file))
 
-;; (server-start)
+(server-start)
