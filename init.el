@@ -44,7 +44,7 @@
 
 ;;; We need to call the `delete-selection-mode' function here;
 ;;; only setting the variable does not seem to have any effect.
-(delete-selection-mode)
+(delete-selection-mode 1)
 
 ;; Save backup files in the temporary directory
 (setq backup-directory-alist `((".*" . ,temporary-file-directory))
@@ -190,6 +190,50 @@ as in `defun'."
                     (progn
                       (add-to-list 'default-frame-alist `(font . ,svarog//default-font))
                       (set-face-font 'default svarog//default-font))))
+
+(use-feature composite
+  :init
+  (defvar composition-ligature-table (make-char-table nil))
+  :hook
+  (((prog-mode conf-mode nxml-mode markdown-mode help-mode)
+    . (lambda () (setq-local composition-function-table composition-ligature-table))))
+    :config
+  ;; support ligatures, some toned down to prevent hang
+  (when (version<= "27.0" emacs-version)
+    (let ((alist
+           '((33 . ".\\(?:\\(==\\|[!=]\\)[!=]?\\)")
+             (35 . ".\\(?:\\(###?\\|_(\\|[(:=?[_{]\\)[#(:=?[_{]?\\)")
+             (36 . ".\\(?:\\(>\\)>?\\)")
+             (37 . ".\\(?:\\(%\\)%?\\)")
+             (38 . ".\\(?:\\(&\\)&?\\)")
+             (42 . ".\\(?:\\(\\*\\*\\|[*>]\\)[*>]?\\)")
+             ;; (42 . ".\\(?:\\(\\*\\*\\|[*/>]\\).?\\)")
+             (43 . ".\\(?:\\([>]\\)>?\\)")
+             ;; (43 . ".\\(?:\\(\\+\\+\\|[+>]\\).?\\)")
+             (45 . ".\\(?:\\(-[->]\\|<<\\|>>\\|[-<>|~]\\)[-<>|~]?\\)")
+             ;; (46 . ".\\(?:\\(\\.[.<]\\|[-.=]\\)[-.<=]?\\)")
+             (46 . ".\\(?:\\(\\.<\\|[-=]\\)[-<=]?\\)")
+             (47 . ".\\(?:\\(//\\|==\\|[=>]\\)[/=>]?\\)")
+             ;; (47 . ".\\(?:\\(//\\|==\\|[*/=>]\\).?\\)")
+             (48 . ".\\(?:\\(x[a-fA-F0-9]\\).?\\)")
+             (58 . ".\\(?:\\(::\\|[:<=>]\\)[:<=>]?\\)")
+             (59 . ".\\(?:\\(;\\);?\\)")
+             (60 . ".\\(?:\\(!--\\|\\$>\\|\\*>\\|\\+>\\|-[-<>|]\\|/>\\|<[-<=]\\|=[<>|]\\|==>?\\||>\\||||?\\|~[>~]\\|[$*+/:<=>|~-]\\)[$*+/:<=>|~-]?\\)")
+             (61 . ".\\(?:\\(!=\\|/=\\|:=\\|<<\\|=[=>]\\|>>\\|[=>]\\)[=<>]?\\)")
+             (62 . ".\\(?:\\(->\\|=>\\|>[-=>]\\|[-:=>]\\)[-:=>]?\\)")
+             (63 . ".\\(?:\\([.:=?]\\)[.:=?]?\\)")
+             (91 . ".\\(?:\\(|\\)[]|]?\\)")
+             ;; (92 . ".\\(?:\\([\\n]\\)[\\]?\\)")
+             (94 . ".\\(?:\\(=\\)=?\\)")
+             (95 . ".\\(?:\\(|_\\|[_]\\)_?\\)")
+             (119 . ".\\(?:\\(ww\\)w?\\)")
+             (123 . ".\\(?:\\(|\\)[|}]?\\)")
+             (124 . ".\\(?:\\(->\\|=>\\||[-=>]\\||||*>\\|[]=>|}-]\\).?\\)")
+             (126 . ".\\(?:\\(~>\\|[-=>@~]\\)[-=>@~]?\\)"))))
+      (dolist (char-regexp alist)
+        (set-char-table-range composition-ligature-table (car char-regexp)
+                              `([,(cdr char-regexp) 0 font-shape-gstring]))))
+    (set-char-table-parent composition-ligature-table composition-function-table)))
 
 ;;;; Svarog keymap
 (defvar svarog//keymap (make-sparse-keymap)
@@ -703,7 +747,8 @@ as in `defun'."
 ;; (setq ccls-args '("--log-file=/tmp/ccls.log -v=1"))
 
 (use-package clang-format
-  :bind ("C-c f" . clang-format-buffer))
+  :bind (("C-c f"   . clang-format-buffer)
+         ("C-c C-f" . clang-format-buffer)))
 
 (use-package rust-mode)
 (use-package racer
@@ -787,7 +832,19 @@ as in `defun'."
 (use-package protobuf-mode
   :config
   (svarog/defhook svarog/set-proto-style () protobuf-mode-hook "Set protobuf style."
-    (c-add-style "local-protobuf-style" local-protobuf-style t)))
+                  (c-add-style "local-protobuf-style" local-protobuf-style t)))
+
+(svarog/defhook mark-script-executable () after-save-hook "Make scripts executable upon save."
+                (and (save-excursion
+                       (save-restriction
+                         (widen)
+                         (goto-char (point-min))
+                         (save-match-data
+                           (looking-at "^#!"))))
+                     (not (file-executable-p buffer-file-name))
+                     (shell-command (concat "chmod u+x " buffer-file-name))
+                     (message
+                      (concat "Saved as script: " buffer-file-name))))
 
 ;;;; Editing tweaks
 
@@ -875,7 +932,7 @@ as in `defun'."
   (when (version<= "27" emacs-version)
     (dolist (fun '(c-electric-paren c-electric-brace))
       (add-to-list 'sp--special-self-insert-commands fun)))
-  (defun radian--smartparens-indent-new-pair (&rest _)
+  (defun svarog//smartparens-indent-new-pair (&rest _)
     "Insert an extra newline after point, and reindent."
     (newline)
     (indent-according-to-mode)
@@ -890,26 +947,26 @@ as in `defun'."
   ;; inserting a pair, add an extra newline and indent. See
   ;; <https://github.com/Fuco1/smartparens/issues/80#issuecomment-18910312>.
 
-  (defun radian--smartparens-pair-setup (mode delim)
+  (defun svarog//smartparens-pair-setup (mode delim)
     "In major mode MODE, set up DELIM with newline-and-indent."
     (sp-local-pair mode delim nil :post-handlers
-                   '((radian--smartparens-indent-new-pair "RET")
-                     (radian--smartparens-indent-new-pair "<return>"))))
+                   '((svarog//smartparens-indent-new-pair "RET")
+                     (svarog//smartparens-indent-new-pair "<return>"))))
 
-  (radian--smartparens-pair-setup #'prog-mode "(")
-  (radian--smartparens-pair-setup #'prog-mode "[")
-  (radian--smartparens-pair-setup #'prog-mode "{")
-  (radian--smartparens-pair-setup #'python-mode "\"\"\"")
-  (radian--smartparens-pair-setup #'latex-mode "\\[")
-  (radian--smartparens-pair-setup #'markdown-mode "```")
+  (svarog//smartparens-pair-setup #'prog-mode "(")
+  (svarog//smartparens-pair-setup #'prog-mode "[")
+  (svarog//smartparens-pair-setup #'prog-mode "{")
+  (svarog//smartparens-pair-setup #'python-mode "\"\"\"")
+  (svarog//smartparens-pair-setup #'latex-mode "\\[")
+  (svarog//smartparens-pair-setup #'markdown-mode "```")
 
   ;; It's unclear to me why any of this is needed.
-  (radian--smartparens-pair-setup #'json-mode "[")
-  (radian--smartparens-pair-setup #'json-mode "{")
-  (radian--smartparens-pair-setup #'tex-mode "{")
+  (svarog//smartparens-pair-setup #'json-mode "[")
+  (svarog//smartparens-pair-setup #'json-mode "{")
+  (svarog//smartparens-pair-setup #'tex-mode "{")
 
   ;; Deal with `protobuf-mode' not using `define-minor-mode'.
-  (radian--smartparens-pair-setup #'protobuf-mode "{")
+  (svarog//smartparens-pair-setup #'protobuf-mode "{")
 
   ;; Work around https://github.com/Fuco1/smartparens/issues/783.
   (setq sp-escape-quotes-after-insert nil)
