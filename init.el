@@ -1075,4 +1075,4 @@ as in `defun'."
 (when (file-exists-p svarog/local-config-file)
   (org-babel-load-file svarog/local-config-file))
 
-(server-start)
+;; (server-start)
