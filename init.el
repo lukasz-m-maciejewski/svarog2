@@ -183,7 +183,8 @@ as in `defun'."
   :demand t)
 
 ;;;; Look customization
-(setq svarog//default-font "Iosevka-12")
+(setq svarog//default-font "Iosevka Term-12")
+;; (setq svarog//default-font "BlexMono Nerd Font-10")
 
 (svarog/defhook look-setup () after-init-hook "Look setup"
                 (if window-system
@@ -1074,5 +1075,10 @@ as in `defun'."
 (setq svarog/local-config-file (expand-file-name "svarog_local.org" (expand-file-name user-emacs-directory)))
 (when (file-exists-p svarog/local-config-file)
   (org-babel-load-file svarog/local-config-file))
+
+(use-package crux
+  :bind (("C-a" . crux-move-beginning-of-line)
+         ("C-c o" . crux-open-with)
+         ("C-c e" . crux-eval-and-replace)))
 
 ;; (server-start)
